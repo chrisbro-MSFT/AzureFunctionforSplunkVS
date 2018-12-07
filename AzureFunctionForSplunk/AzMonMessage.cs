@@ -31,230 +31,217 @@ using System.Text.RegularExpressions;
 
 namespace AzureFunctionForSplunk
 {
-    public class AzMonMessage
-    {
-        protected ExpandoObject Message { get; set; }
-        protected string ResourceId { get; set; }
-        public string SubscriptionId { get; set; }
-        public string ResourceType { get; set; }
-        public string ResourceName { get; set; }
-        public string ResourceGroup { get; set; }
-        public string SplunkSourceType { get; set; }
-        public string TenantId { get; set; }
-        public string ProviderName { get; set; }
+	public class AzMonMessage
+	{
+		protected ExpandoObject Message { get; set; }
+		protected string ResourceId { get; set; }
+		public string SubscriptionId { get; set; }
+		public string ResourceType { get; set; }
+		public string ResourceName { get; set; }
+		public string ResourceGroup { get; set; }
+		public string SplunkSourceType { get; set; }
+		public string TenantId { get; set; }
+		public string ProviderName { get; set; }
 
-        public AzMonMessage()
-        {
-            SubscriptionId = "";
-            ResourceId = "";
-            ResourceGroup = "";
-            ResourceName = "";
-            ResourceType = "";
-            SplunkSourceType = "";
-            TenantId = "";
-        }
+		public AzMonMessage()
+		{
+			SubscriptionId = "";
+			ResourceId = "";
+			ResourceGroup = "";
+			ResourceName = "";
+			ResourceType = "";
+			SplunkSourceType = "";
+			TenantId = "";
+		}
 
-        public string GetSplunkEventFromMessage()
-        {
-            string json = Newtonsoft.Json.JsonConvert.SerializeObject(Message);
+		protected void GetStandardProperties()
+		{
+			string pattern;
 
-            var s = "{";
-            s += "\"sourcetype\": \"" + SplunkSourceType + "\",";
-            s += "\"event\": " + json;
-            s += "}";
+			pattern = @"SUBSCRIPTIONS\/(.*?)\/";
+			Match m = Regex.Match(ResourceId.ToUpper(), pattern);
+			SubscriptionId = m.Groups[1].Value;
 
-            return s;
+			pattern = @"SUBSCRIPTIONS\/(?:.*?)\/RESOURCEGROUPS\/(.*?)(\/|\Z)";
+			m = Regex.Match(ResourceId.ToUpper(), pattern);
+			ResourceGroup = m.Groups[1].Value;
 
-        }
+			pattern = @"PROVIDERS\/(?:.*?\/.*?\/)(.*?)(?:\/|$)";
+			m = Regex.Match(ResourceId.ToUpper(), pattern);
+			ResourceName = m.Groups[1].Value;
 
-        protected void GetStandardProperties()
-        {
-            string pattern;
+			pattern = @"PROVIDERS\/(.*?\/.*?)(?:\/)(?:.*\/)(.*DATABASES)";
+			m = Regex.Match(ResourceId.ToUpper(), pattern);
+			string group1 = m.Groups[1].Value;
+			string group2 = m.Groups[2].Value;
+			if (group2 == "DATABASES")
+			{
+				ResourceType = group1 + "/" + group2;
+			}
+			else
+			{
+				pattern = @"PROVIDERS\/(.*?\/.*?)(?:\/)";
+				m = Regex.Match(ResourceId.ToUpper(), pattern);
+				ResourceType = m.Groups[1].Value;
+			}
+		}
 
-            pattern = @"SUBSCRIPTIONS\/(.*?)\/";
-            Match m = Regex.Match(ResourceId.ToUpper(), pattern);
-            SubscriptionId = m.Groups[1].Value;
+		protected void AddStandardProperties(string prefix)
+		{
+			if (TenantId != "")
+			{
+				((IDictionary<String, Object>)Message).Add($"{prefix}_TenantId", TenantId);
+			}
+			if (SubscriptionId != "")
+			{
+				((IDictionary<String, Object>)Message).Add($"{prefix}_SubscriptionId", SubscriptionId);
+			}
+			if (ResourceGroup != "")
+			{
+				((IDictionary<String, Object>)Message).Add($"{prefix}_ResourceGroup", ResourceGroup);
+			}
+			if (ResourceType != "")
+			{
+				((IDictionary<String, Object>)Message).Add($"{prefix}_ResourceType", ResourceType);
+			}
+			if (ResourceName != "")
+			{
+				((IDictionary<String, Object>)Message).Add($"{prefix}_ResourceName", ResourceName);
+			}
+		}
 
-            pattern = @"SUBSCRIPTIONS\/(?:.*?)\/RESOURCEGROUPS\/(.*?)(\/|\Z)";
-            m = Regex.Match(ResourceId.ToUpper(), pattern);
-            ResourceGroup = m.Groups[1].Value;
+	}
 
-            pattern = @"PROVIDERS\/(?:.*?\/.*?\/)(.*?)(?:\/|$)";
-            m = Regex.Match(ResourceId.ToUpper(), pattern);
-            ResourceName = m.Groups[1].Value;
+	public class AzMonActivityLog : AzMonMessage
+	{
+		public AzMonActivityLog(dynamic message, string sourceType)
+		{
+			Message = message;
+			ResourceId = message.resourceId;
 
-            pattern = @"PROVIDERS\/(.*?\/.*?)(?:\/)(?:.*\/)(.*DATABASES)";
-            m = Regex.Match(ResourceId.ToUpper(), pattern);
-            var group1 = m.Groups[1].Value;
-            var group2 = m.Groups[2].Value;
-            if (group2 == "DATABASES")
-            {
-                ResourceType = group1 + "/" + group2;
-            }
-            else
-            {
-                pattern = @"PROVIDERS\/(.*?\/.*?)(?:\/)";
-                m = Regex.Match(ResourceId.ToUpper(), pattern);
-                ResourceType = m.Groups[1].Value;
-            }
-        }
+			if (((IDictionary<String, Object>)message).ContainsKey("tenantId"))
+			{
+				TenantId = message.tenantId;
 
-        protected void AddStandardProperties(string prefix)
-        {
-            if (TenantId != "")
-            {
-                ((IDictionary<String, Object>)Message).Add($"{prefix}_TenantId", TenantId);
-            }
-            if (SubscriptionId != "")
-            {
-                ((IDictionary<String, Object>)Message).Add($"{prefix}_SubscriptionId", SubscriptionId);
-            }
-            if (ResourceGroup != "")
-            {
-                ((IDictionary<String, Object>)Message).Add($"{prefix}_ResourceGroup", ResourceGroup);
-            }
-            if (ResourceType != "")
-            {
-                ((IDictionary<String, Object>)Message).Add($"{prefix}_ResourceType", ResourceType);
-            }
-            if (ResourceName != "")
-            {
-                ((IDictionary<String, Object>)Message).Add($"{prefix}_ResourceName", ResourceName);
-            }
-        }
+				string pattern = @"PROVIDERS/(.*?)(?:$)";
+				Match m = Regex.Match(ResourceId.ToUpper(), pattern);
+				ProviderName = m.Groups[1].Value;
+			}
 
-    }
+			SplunkSourceType = sourceType;
+			base.GetStandardProperties();
+			base.AddStandardProperties("amal");
+		}
+	}
 
-    public class AzMonActivityLog : AzMonMessage
-    {
-        public AzMonActivityLog(dynamic message, string sourceType)
-        {
-            Message = message;
-            ResourceId = message.resourceId;
+	public class AzMonDiagnosticLog : AzMonMessage
+	{
+		public AzMonDiagnosticLog(dynamic message)
+		{
+			Message = message;
+			ResourceId = message.resourceId;
 
-            if (((IDictionary<String, Object>)message).ContainsKey("tenantId"))
-            {
-                TenantId = message.tenantId;
+			if (((IDictionary<String, Object>)message).ContainsKey("tenantId"))
+			{
+				TenantId = message.tenantId;
 
-                var pattern = @"PROVIDERS/(.*?)(?:$)";
-                Match m = Regex.Match(ResourceId.ToUpper(), pattern);
-                ProviderName = m.Groups[1].Value;
-            }
+				string pattern = @"PROVIDERS/(.*?)(?:$)";
+				Match m = Regex.Match(ResourceId.ToUpper(), pattern);
+				ProviderName = m.Groups[1].Value;
+			}
 
-            SplunkSourceType = sourceType;
-            base.GetStandardProperties();
-            base.AddStandardProperties("amal");
-        }
-    }
+			base.GetStandardProperties();
+			base.AddStandardProperties("amdl");
+		}
+	}
 
-    public class AzMonDiagnosticLog : AzMonMessage
-    {
-        public AzMonDiagnosticLog(dynamic message)
-        {
-            Message = message;
-            ResourceId = message.resourceId;
+	public class AzMonMetric : AzMonMessage
+	{
+		public AzMonMetric(dynamic message, string sourceType)
+		{
+			Message = message;
+			ResourceId = message.resourceId;
+			SplunkSourceType = sourceType;
+			base.GetStandardProperties();
+			base.AddStandardProperties("amm");
+		}
+	}
 
-            if (((IDictionary<String, Object>)message).ContainsKey("tenantId"))
-            {
-                TenantId = message.tenantId;
+	public class LadAzMonMetric : AzMonMessage
+	{
+		public LadAzMonMetric(dynamic message)
+		{
+			Message = message;
+			ResourceId = message.resourceId;
+			SplunkSourceType = "azlm:compute:vm";
+			base.GetStandardProperties();
+			base.AddStandardProperties("azlm");
+		}
+	}
 
-                var pattern = @"PROVIDERS/(.*?)(?:$)";
-                Match m = Regex.Match(ResourceId.ToUpper(), pattern);
-                ProviderName = m.Groups[1].Value;
-            }
+	public class LadAzMonLog : AzMonMessage
+	{
+		public LadAzMonLog(dynamic message)
+		{
+			Message = message;
+			ResourceId = message.resourceId;
+			SplunkSourceType = "azll:compute:vm";
+			base.GetStandardProperties();
+			base.AddStandardProperties("azll");
+		}
+	}
 
-            base.GetStandardProperties();
-            base.AddStandardProperties("amdl");
-        }
-    }
+	public class WadAzMonMetric : AzMonMessage
+	{
+		public WadAzMonMetric(dynamic message)
+		{
+			Message = message;
 
-    public class AzMonMetric : AzMonMessage
-    {
-        public AzMonMetric(dynamic message, string sourceType)
-        {
-            Message = message;
-            ResourceId = message.resourceId;
-            SplunkSourceType = sourceType;
-            base.GetStandardProperties();
-            base.AddStandardProperties("amm");
-        }
-    }
+			ResourceType = "MICROSOFT.COMPUTE/VIRTUALMACHINES";
 
-    public class LadAzMonMetric : AzMonMessage
-    {
-        public LadAzMonMetric(dynamic message)
-        {
-            Message = message;
-            ResourceId = message.resourceId;
-            SplunkSourceType = "azlm:compute:vm";
-            base.GetStandardProperties();
-            base.AddStandardProperties("azlm");
-        }
-    }
+			SplunkSourceType = "azwm:compute:vm";
 
-    public class LadAzMonLog : AzMonMessage
-    {
-        public LadAzMonLog(dynamic message)
-        {
-            Message = message;
-            ResourceId = message.resourceId;
-            SplunkSourceType = "azll:compute:vm";
-            base.GetStandardProperties();
-            base.AddStandardProperties("azll");
-        }
-    }
+			if (((IDictionary<String, Object>)message).ContainsKey("dimensions"))
+			{
+				dynamic dimensions = message.dimensions;
+				if (((IDictionary<String, Object>)dimensions).ContainsKey("RoleInstance"))
+				{
+					string theName = message.dimensions.RoleInstance;
 
-    public class WadAzMonMetric : AzMonMessage
-    {
-        public WadAzMonMetric(dynamic message)
-        {
-            Message = message;
+					// if it's there at all, RoleInstance starts with _
+					if (theName.Length > 1) ResourceName = theName.Substring(1);
+				}
+			}
 
-            ResourceType = "MICROSOFT.COMPUTE/VIRTUALMACHINES";
+			AddStandardProperties("azwm");
+		}
 
-            SplunkSourceType = "azwm:compute:vm";
+	}
 
-            if (((IDictionary<String, Object>)message).ContainsKey("dimensions"))
-            {
-                var dimensions = message.dimensions;
-                if (((IDictionary<String, Object>)dimensions).ContainsKey("RoleInstance"))
-                {
-                    string theName = message.dimensions.RoleInstance;
+	public class WadAzMonLog : AzMonMessage
+	{
+		public WadAzMonLog(dynamic message)
+		{
+			Message = message;
 
-                    // if it's there at all, RoleInstance starts with _
-                    if (theName.Length > 1) ResourceName = theName.Substring(1);
-                }
-            }
+			ResourceType = "MICROSOFT.COMPUTE/VIRTUALMACHINES";
 
-            AddStandardProperties("azwm");
-        }
+			SplunkSourceType = "azwm:compute:vm";
 
-    }
+			if (((IDictionary<String, Object>)message).ContainsKey("properties"))
+			{
+				dynamic properties = message.properties;
+				if (((IDictionary<String, Object>)properties).ContainsKey("RoleInstance"))
+				{
+					string theName = message.properties.RoleInstance;
 
-    public class WadAzMonLog : AzMonMessage
-    {
-        public WadAzMonLog(dynamic message)
-        {
-            Message = message;
+					// if it's there at all, RoleInstance starts with _
+					if (theName.Length > 1) ResourceName = theName.Substring(1);
+				}
+			}
 
-            ResourceType = "MICROSOFT.COMPUTE/VIRTUALMACHINES";
+			AddStandardProperties("azwl");
+		}
 
-            SplunkSourceType = "azwm:compute:vm";
-
-            if (((IDictionary<String, Object>)message).ContainsKey("properties"))
-            {
-                var properties = message.properties;
-                if (((IDictionary<String, Object>)properties).ContainsKey("RoleInstance"))
-                {
-                    string theName = message.properties.RoleInstance;
-
-                    // if it's there at all, RoleInstance starts with _
-                    if (theName.Length > 1) ResourceName = theName.Substring(1);
-                }
-            }
-
-            AddStandardProperties("azwl");
-        }
-
-    }
+	}
 }

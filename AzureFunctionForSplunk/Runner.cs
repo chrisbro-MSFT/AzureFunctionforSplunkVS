@@ -36,68 +36,72 @@ using Newtonsoft.Json;
 
 namespace AzureFunctionForSplunk
 {
-    public class Runner
-    {
-        public async Task Run<T1, T2>(
-            string[] messages,
-            IBinder blobFaultBinder,
-            Binder queueFaultBinder,
-            TraceWriter log)
-        {
-            var azMonMsgs = (AzMonMessages)Activator.CreateInstance(typeof(T1), log);
-            List<string> decomposed = null;
-            try
-            {
-                decomposed = azMonMsgs.DecomposeIncomingBatch(messages);
-            }
-            catch (Exception)
-            {
-                throw;
-            }
+	public static class Runner
+	{
+		public static async Task Run<T>(
+			string[] messages,
+			IBinder blobFaultBinder,
+			Binder queueFaultBinder,
+			TraceWriter log)
+		{
+			AzMonMessages azMonMsgs = (AzMonMessages)Activator.CreateInstance(typeof(T), log);
+			List<string> parsedMessages = null;
+			try
+			{
+				parsedMessages = azMonMsgs.DecomposeIncomingBatch(messages);
+			}
+			catch (Exception)
+			{
+				throw;
+			}
 
-            if (decomposed.Count > 0)
-            {
-                var splunkMsgs = (SplunkEventMessages)Activator.CreateInstance(typeof(T2), log);
-                try
-                {
-                    splunkMsgs.Ingest(decomposed.ToArray());
-                    await splunkMsgs.Emit();
-                }
-                catch (Exception exEmit)
-                {
-                    var id = Guid.NewGuid().ToString();
+			if (parsedMessages?.Count == 0)
+			{
+				log.Warning($"Trigger function processed a batch of {messages.Length} messages but couldn't parse any of them into objects");
+				return;
+			}
 
-                    try
-                    {
-                        var blobWriter = await blobFaultBinder.BindAsync<CloudBlockBlob>(
-                            new BlobAttribute($"transmission-faults/{id}", FileAccess.ReadWrite));
+			if (parsedMessages.Count != messages.Length)
+			{
+				log.Warning($"Trigger function processed a batch of {messages.Length} messages but only successfully parsed {parsedMessages.Count}");
+			}
 
-                        string json = await Task<string>.Factory.StartNew(() => JsonConvert.SerializeObject(splunkMsgs.splunkEventMessages));
-                        await blobWriter.UploadTextAsync(json);
-                    }
-                    catch (Exception exFaultBlob)
-                    {
-                        log.Error($"Failed to write the fault blob: {id}. {exFaultBlob.Message}");
-                    }
+			try
+			{
+				await Utils.SendEvents(parsedMessages, log);
+			}
+			catch (Exception exEmit)
+			{
+				string id = Guid.NewGuid().ToString();
+				log.Error($"Failed to write the fault queue: {id}. {exEmit}");
 
-                    try
-                    {
-                        var qMsg = new TransmissionFaultMessage { id = id, type = typeof(T2).ToString() };
-                        string qMsgJson = JsonConvert.SerializeObject(qMsg);
+				try
+				{
+					CloudBlockBlob blobWriter = await blobFaultBinder.BindAsync<CloudBlockBlob>(new BlobAttribute($"transmission-faults/{id}", FileAccess.ReadWrite));
 
-                        var queueWriter = await queueFaultBinder.BindAsync<CloudQueue>(
-                            new QueueAttribute("transmission-faults"));
-                        await queueWriter.AddMessageAsync(new CloudQueueMessage(qMsgJson));
-                    }
-                    catch (Exception exFaultQueue)
-                    {
-                        log.Error($"Failed to write the fault queue: {id}. {exFaultQueue.Message}");
-                    }
+					string json = await Task<string>.Factory.StartNew(() => JsonConvert.SerializeObject(parsedMessages));
+					await blobWriter.UploadTextAsync(json);
+				}
+				catch (Exception exFaultBlob)
+				{
+					log.Error($"Failed to write the fault blob: {id}. {exFaultBlob}");
+				}
 
-                }
-            }
+				try
+				{
+					TransmissionFaultMessage qMsg = new TransmissionFaultMessage { id = id, type = typeof(T).ToString() };
+					string qMsgJson = JsonConvert.SerializeObject(qMsg);
 
-            log.Info($"C# Event Hub trigger function processed a batch of messages: {messages.Length}");
-        }
-    }
+					CloudQueue queueWriter = await queueFaultBinder.BindAsync<CloudQueue>(new QueueAttribute("transmission-faults"));
+					await queueWriter.AddMessageAsync(new CloudQueueMessage(qMsgJson));
+				}
+				catch (Exception exFaultQueue)
+				{
+					log.Error($"Failed to write the fault queue: {id}. {exFaultQueue}");
+				}
+			}
+
+			log.Info($"C# Event Hub trigger function processed a batch of messages: {messages.Length}");
+		}
+	}
 }

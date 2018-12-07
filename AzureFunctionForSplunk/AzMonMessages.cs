@@ -30,80 +30,81 @@ using System.Collections.Generic;
 
 namespace AzureFunctionForSplunk
 {
-    public abstract class AzMonMessages
-    {
-        public TraceWriter Log { get; set; }
+	public abstract class AzMonMessages
+	{
+		public TraceWriter Log { get; set; }
 
-        public virtual List<string> DecomposeIncomingBatch(string[] messages)
-        {
-            List<string> decomposed = new List<string>();
+		public virtual List<string> DecomposeIncomingBatch(string[] messages)
+		{
+			List<string> decomposed = new List<string>(messages.Length);
 
-            foreach (var message in messages)
-            {
-                dynamic obj = JsonConvert.DeserializeObject<Dictionary<string, dynamic>>(message);
+			foreach (string message in messages)
+			{
+				dynamic obj = JsonConvert.DeserializeObject<Dictionary<string, dynamic>>(message);
 
-                if (((IDictionary<string, dynamic>)obj).ContainsKey("records"))
-                {
-                    var records = obj["records"];
+				if (((IDictionary<string, dynamic>)obj).ContainsKey("records"))
+				{
+					dynamic records = obj["records"];
 
-                    foreach (var record in records)
-                    {
-                        string stringRecord = record.ToString();
+					foreach (dynamic record in records)
+					{
+						string stringRecord = record.ToString();
 
-                        decomposed.Add(stringRecord);
-                    }
-                } else
-                {
-                    Log.Error("AzMonMessages: invalid message structure, missing 'records'");
-                }
-            }
+						decomposed.Add(stringRecord);
+					}
+				}
+				else
+				{
+					Log.Error("AzMonMessages: invalid message structure, missing 'records'");
+				}
+			}
 
-            return decomposed;
-        }
+			return decomposed;
+		}
 
-        public AzMonMessages(TraceWriter log)
-        {
-            Log = log;
-        }
+		public AzMonMessages(TraceWriter log)
+		{
+			Log = log;
+		}
 
-    }
+	}
 
-    public class ActivityLogMessages : AzMonMessages
-    {
-        public ActivityLogMessages(TraceWriter log) : base(log) { }
-    }
+	public class ActivityLogMessages : AzMonMessages
+	{
+		public ActivityLogMessages(TraceWriter log) : base(log) { }
+	}
 
-    public class DiagnosticLogMessages : AzMonMessages
-    {
-        public DiagnosticLogMessages(TraceWriter log) : base(log) { }
-    }
+	public class DiagnosticLogMessages : AzMonMessages
+	{
+		public DiagnosticLogMessages(TraceWriter log) : base(log) { }
+	}
 
-    public class MetricMessages : AzMonMessages
-    {
-        public MetricMessages(TraceWriter log) : base(log) { }
-    }
+	public class MetricMessages : AzMonMessages
+	{
+		public MetricMessages(TraceWriter log) : base(log) { }
+	}
 
-    public class WadMessages : AzMonMessages
-    {
-        public WadMessages(TraceWriter log): base(log) { }
-    }
+	public class WadMessages : AzMonMessages
+	{
+		public WadMessages(TraceWriter log) : base(log) { }
+	}
 
-    public class LadMessages : AzMonMessages
-    {
-        public LadMessages(TraceWriter log) : base(log) { }
+	public class LadMessages : AzMonMessages
+	{
+		public LadMessages(TraceWriter log) : base(log) { }
 
-        public override List<string> DecomposeIncomingBatch(string[] messages)
-        {
-            List<string> decomposed = new List<string>();
+		public override List<string> DecomposeIncomingBatch(string[] messages)
+		{
+			List<string> decomposed = new List<string>();
 
-            foreach (var record in messages)
-            {
-                string stringRecord = record.ToString();
+			foreach (string record in messages)
+			{
+				string stringRecord = record.ToString();
 
-                decomposed.Add(stringRecord);
-            }
+				decomposed.Add(stringRecord);
+			}
 
-            return decomposed;
-        }
-    }
+			return decomposed;
+		}
+	}
 }

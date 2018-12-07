@@ -8,34 +8,35 @@ using System.Collections.Generic;
 
 namespace AzureFunctionForSplunk
 {
-    public static class FaultProcessor
-    {
-        [FunctionName("FaultProcessor")]
-        public static async Task Run(
-            [QueueTrigger("transmission-faults", Connection = "AzureWebJobsStorage")]string fault,
-            IBinder blobFaultBinder,
-            TraceWriter log)
-        {
-            var faultData = JsonConvert.DeserializeObject<TransmissionFaultMessage>(fault);
+	public static class FaultProcessor
+	{
+		[FunctionName("FaultProcessor")]
+		public static async Task Run(
+			[QueueTrigger("transmission-faults", Connection = "AzureWebJobsStorage")]string fault,
+			IBinder blobFaultBinder,
+			TraceWriter log)
+		{
+			TransmissionFaultMessage faultData = JsonConvert.DeserializeObject<TransmissionFaultMessage>(fault);
 
-            var blobReader = await blobFaultBinder.BindAsync<CloudBlockBlob>(
-                    new BlobAttribute($"transmission-faults/{faultData.id}", FileAccess.ReadWrite));
+			CloudBlockBlob blobReader = await blobFaultBinder.BindAsync<CloudBlockBlob>(
+					new BlobAttribute($"transmission-faults/{faultData.id}", FileAccess.ReadWrite));
 
-            var json = await blobReader.DownloadTextAsync();
-            
-            try
-            {
-                List<string> faultMessages = await Task<List<string>>.Factory.StartNew(() => JsonConvert.DeserializeObject<List<string>>(json));
-                await Utils.obHEC(faultMessages, log);
-            } catch
-            {
-                log.Error($"FaultProcessor failed to send to Splunk: {faultData.id}");
-                return;
-            }
+			string json = await blobReader.DownloadTextAsync();
 
-            await blobReader.DeleteAsync();
+			try
+			{
+				List<string> faultMessages = await Task<List<string>>.Factory.StartNew(() => JsonConvert.DeserializeObject<List<string>>(json));
+				await Utils.SendEvents(faultMessages, log);
+			}
+			catch
+			{
+				log.Error($"FaultProcessor failed to send to Splunk: {faultData.id}");
+				return;
+			}
 
-            log.Info($"C# Queue trigger function processed: {faultData.id}");
-        }
-    }
+			await blobReader.DeleteAsync();
+
+			log.Info($"C# Queue trigger function processed: {faultData.id}");
+		}
+	}
 }

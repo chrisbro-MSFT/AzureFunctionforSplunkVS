@@ -31,17 +31,16 @@ using System.Threading.Tasks;
 
 namespace AzureFunctionForSplunk
 {
-    public static class EhMetricsExt
-    {
-        [FunctionName("EhMetricsExt")]
-        public static async Task Run(
-            [EventHubTrigger("%input-hub-name-metrics%", Connection = "hubConnection")]string[] messages,
-            IBinder blobFaultBinder,
-            Binder queueFaultBinder,
-            TraceWriter log)
-        {
-            var runner = new Runner();
-            await runner.Run<MetricMessages, MetricsSplunkEventMessages>(messages, blobFaultBinder, queueFaultBinder, log);
-        }
-    }
+	public static class EhMetricsExt
+	{
+		[FunctionName("EhMetricsExt")]
+		public static async Task Run(
+			[EventHubTrigger("%input-hub-name-metrics%", Connection = "hubConnection")]string[] messages,
+			IBinder blobFaultBinder,
+			Binder queueFaultBinder,
+			TraceWriter log)
+		{
+			await Runner.Run<MetricMessages>(messages, blobFaultBinder, queueFaultBinder, log);
+		}
+	}
 }
