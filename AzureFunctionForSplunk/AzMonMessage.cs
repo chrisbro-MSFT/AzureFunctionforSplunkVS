@@ -1,5 +1,5 @@
 ﻿//
-// AzureFunctionForSplunkVS
+// AzureLogExporterVS
 //
 // Copyright (c) Microsoft Corporation
 //
@@ -29,8 +29,10 @@ using System.Collections.Generic;
 using System.Dynamic;
 using System.Text.RegularExpressions;
 
-namespace AzureFunctionForSplunk
+namespace AzureLogExporter
 {
+	/* TODO: Not used right now.  I think I can reuse the classes as parsed/cleaned-up serialization classes to send to the destination.
+
 	public class AzMonMessage
 	{
 		protected ExpandoObject Message { get; set; }
@@ -109,7 +111,6 @@ namespace AzureFunctionForSplunk
 				((IDictionary<String, Object>)Message).Add($"{prefix}_ResourceName", ResourceName);
 			}
 		}
-
 	}
 
 	public class AzMonActivityLog : AzMonMessage
@@ -215,7 +216,6 @@ namespace AzureFunctionForSplunk
 
 			AddStandardProperties("azwm");
 		}
-
 	}
 
 	public class WadAzMonLog : AzMonMessage
@@ -242,6 +242,6 @@ namespace AzureFunctionForSplunk
 
 			AddStandardProperties("azwl");
 		}
-
 	}
+	*/
 }

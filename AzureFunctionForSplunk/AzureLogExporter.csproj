@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net461</TargetFramework>
+    <AssemblyName>AzureLogExporter</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="AzureMonitorMessage.cs" />

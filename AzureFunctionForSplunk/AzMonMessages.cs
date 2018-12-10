@@ -1,5 +1,5 @@
 ﻿//
-// AzureFunctionForSplunkVS
+// AzureLogExporterVS
 //
 // Copyright (c) Microsoft Corporation
 //
@@ -28,7 +28,7 @@ using Microsoft.Azure.WebJobs.Host;
 using Newtonsoft.Json;
 using System.Collections.Generic;
 
-namespace AzureFunctionForSplunk
+namespace AzureLogExporter
 {
 	public abstract class AzMonMessages
 	{

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using System.Collections.Generic;
 
-namespace AzureFunctionForSplunk
+namespace AzureLogExporter
 {
 	public static class FaultProcessor
 	{
@@ -30,7 +30,7 @@ namespace AzureFunctionForSplunk
 			}
 			catch
 			{
-				log.Error($"FaultProcessor failed to send to Splunk: {faultData.id}");
+				log.Error($"FaultProcessor failed to send: {faultData.id}");
 				return;
 			}
 

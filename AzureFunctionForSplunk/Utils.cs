@@ -1,5 +1,5 @@
 ﻿//
-// AzureFunctionForSplunkVS
+// AzureLogExporter
 //
 // Copyright (c) Microsoft Corporation
 //
@@ -37,7 +37,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace AzureFunctionForSplunk
+namespace AzureLogExporter
 {
 	public class TransmissionFaultMessage
 	{
@@ -47,11 +47,11 @@ namespace AzureFunctionForSplunk
 
 	public class Utils
 	{
-		static string SplunkCertThumbprint { get; set; }
+		static string ExpectedRemoteCertThumbprint { get; set; }
 
 		public Utils()
 		{
-			SplunkCertThumbprint = GetEnvironmentVariable("splunkCertThumbprint");
+			ExpectedRemoteCertThumbprint = GetEnvironmentVariable("destinationCertThumbprint");
 		}
 
 		public static string GetEnvironmentVariable(string name)
@@ -72,7 +72,7 @@ namespace AzureFunctionForSplunk
 				HttpClient = new HttpClient();
 			}
 
-			public static async Task<HttpResponseMessage> SendToSplunk(HttpRequestMessage req)
+			public static async Task<HttpResponseMessage> SendRequest(HttpRequestMessage req)
 			{
 				HttpResponseMessage response = await HttpClient.SendAsync(req);
 				return response;
@@ -82,12 +82,12 @@ namespace AzureFunctionForSplunk
 		private static bool ValidateMyCert(object sender, X509Certificate cert, X509Chain chain, SslPolicyErrors sslErr)
 		{
 			// if user has not configured a cert, anything goes
-			if (string.IsNullOrWhiteSpace(SplunkCertThumbprint))
+			if (string.IsNullOrWhiteSpace(ExpectedRemoteCertThumbprint))
 				return true;
 
 			// if user has configured a cert, must match
 			string thumbprint = cert.GetCertHashString();
-			if (thumbprint == SplunkCertThumbprint)
+			if (thumbprint == ExpectedRemoteCertThumbprint)
 				return true;
 
 			return false;
@@ -95,11 +95,11 @@ namespace AzureFunctionForSplunk
 
 		public static async Task SendEvents(List<string> standardizedEvents, TraceWriter log)
 		{
-			string splunkAddress = Utils.GetEnvironmentVariable("splunkAddress");
-			string splunkToken = Utils.GetEnvironmentVariable("splunkToken");
-			if (splunkAddress.Length == 0 || splunkToken.Length == 0)
+			string destinationAddress = Utils.GetEnvironmentVariable("destinationAddress");
+			string destinationToken = Utils.GetEnvironmentVariable("destinationToken");
+			if (destinationAddress.Length == 0 || destinationToken.Length == 0)
 			{
-				log.Error("Values for splunkAddress and splunkToken are required.");
+				log.Error("Values for destinationAddress and destinationToken are required.");
 				return;
 			}
 
@@ -116,24 +116,26 @@ namespace AzureFunctionForSplunk
 			SingleHttpClientInstance client = new SingleHttpClientInstance();
 			try
 			{
-				HttpRequestMessage req = new HttpRequestMessage(HttpMethod.Post, splunkAddress);
+				HttpRequestMessage req = new HttpRequestMessage(HttpMethod.Post, destinationAddress);
 				req.Headers.Accept.Clear();
 				req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-				req.Headers.Add("Authorization", "Splunk " + splunkToken);
+				req.Headers.Add("Authorization", "Bearer " + destinationToken);
 				req.Content = new StringContent(newClientContent.ToString(), Encoding.UTF8, "application/json");
-				HttpResponseMessage response = await SingleHttpClientInstance.SendToSplunk(req);
+				HttpResponseMessage response = await SingleHttpClientInstance.SendRequest(req);
 				if (response.StatusCode != HttpStatusCode.OK)
 				{
-					throw new System.Net.Http.HttpRequestException($"StatusCode from Splunk: {response.StatusCode}, and reason: {response.ReasonPhrase}");
+					throw new System.Net.Http.HttpRequestException($"Request failed.  StatusCode: {response.StatusCode}, and reason: {response.ReasonPhrase}");
 				}
 			}
-			catch (System.Net.Http.HttpRequestException e)
+			catch (System.Net.Http.HttpRequestException hrex)
 			{
-				throw new System.Net.Http.HttpRequestException("Sending to Splunk. Is Splunk service running?", e);
+				log.Error($"Http error while sending: {hrex}");
+				throw;
 			}
-			catch (Exception f)
+			catch (Exception ex)
 			{
-				throw new System.Exception("Sending to Splunk. Unplanned exception.", f);
+				log.Error($"Unexpected error while sending: {ex}");
+				throw;
 			}
 		}
 	}

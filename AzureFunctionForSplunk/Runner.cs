@@ -1,5 +1,5 @@
 ﻿//
-// AzureFunctionForSplunkVS
+// AzureLogExporterVS
 //
 // Copyright (c) Microsoft Corporation
 //
@@ -34,7 +34,7 @@ using System;
 using System.IO;
 using Newtonsoft.Json;
 
-namespace AzureFunctionForSplunk
+namespace AzureLogExporter
 {
 	public static class Runner
 	{

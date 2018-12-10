@@ -1,5 +1,5 @@
 //
-// AzureFunctionForSplunkVS
+// AzureLogExporterVS
 //
 // Copyright (c) Microsoft Corporation
 //
@@ -29,7 +29,7 @@ using Microsoft.Azure.WebJobs.Host;
 using Microsoft.Azure.WebJobs.ServiceBus;
 using System.Threading.Tasks;
 
-namespace AzureFunctionForSplunk
+namespace AzureLogExporter
 {
 	public static class EhWadTelemetryExt
 	{
