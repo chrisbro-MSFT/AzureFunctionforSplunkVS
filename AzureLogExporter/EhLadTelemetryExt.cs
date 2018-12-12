@@ -38,7 +38,7 @@ namespace AzureLogExporter
 			[EventHubTrigger("%input-hub-name-lad%", Connection = "hubConnection")]string[] messages,
 			IBinder blobFaultBinder,
 			Binder queueFaultBinder,
-			TraceWriter log)
+			Microsoft.Extensions.Logging.ILogger log)
 		{
 			await Runner.Run<LadMessages>(messages, blobFaultBinder, queueFaultBinder, log);
 		}

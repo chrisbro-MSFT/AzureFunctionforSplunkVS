@@ -26,6 +26,7 @@
 //
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Host;
+using Microsoft.Extensions.Logging;
 using Microsoft.WindowsAzure.Storage.Blob;
 using Microsoft.WindowsAzure.Storage.Queue;
 using System.Threading.Tasks;
@@ -36,14 +37,20 @@ using Newtonsoft.Json;
 
 namespace AzureLogExporter
 {
+	public delegate Task ReportFailuresDelegate<T>(IBinder blobFaultBinder, Binder queueFaultBinder, ILogger log, List<string> parsedMessages, Exception exEmit);
+
 	public static class Runner
 	{
 		public static async Task Run<T>(
 			string[] messages,
 			IBinder blobFaultBinder,
 			Binder queueFaultBinder,
-			TraceWriter log)
+			ILogger log,
+			ReportFailuresDelegate<T> reportFailuresDelegate = null)
 		{
+			if (reportFailuresDelegate == null)
+				reportFailuresDelegate = LogFailuresToAzureStuff<T>;
+
 			AzMonMessages azMonMsgs = (AzMonMessages)Activator.CreateInstance(typeof(T), log);
 			List<string> parsedMessages = null;
 			try
@@ -57,14 +64,16 @@ namespace AzureLogExporter
 
 			if (parsedMessages?.Count == 0)
 			{
-				log.Warning($"Trigger function processed a batch of {messages.Length} messages but couldn't parse any of them into objects");
+				log.LogError($"Trigger function processed a batch of {messages.Length} messages but couldn't parse any of them into objects");
 				return;
 			}
 
 			if (parsedMessages.Count != messages.Length)
 			{
-				log.Warning($"Trigger function processed a batch of {messages.Length} messages but only successfully parsed {parsedMessages.Count}");
+				log.LogWarning($"Trigger function processed a batch of {messages.Length} messages but only successfully parsed {parsedMessages.Count}");
 			}
+
+			// TODO: Augment the messages with workload-specific data
 
 			try
 			{
@@ -72,36 +81,41 @@ namespace AzureLogExporter
 			}
 			catch (Exception exEmit)
 			{
-				string id = Guid.NewGuid().ToString();
-				log.Error($"Failed to write the fault queue: {id}. {exEmit}");
-
-				try
-				{
-					CloudBlockBlob blobWriter = await blobFaultBinder.BindAsync<CloudBlockBlob>(new BlobAttribute($"transmission-faults/{id}", FileAccess.ReadWrite));
-
-					string json = await Task<string>.Factory.StartNew(() => JsonConvert.SerializeObject(parsedMessages));
-					await blobWriter.UploadTextAsync(json);
-				}
-				catch (Exception exFaultBlob)
-				{
-					log.Error($"Failed to write the fault blob: {id}. {exFaultBlob}");
-				}
-
-				try
-				{
-					TransmissionFaultMessage qMsg = new TransmissionFaultMessage { id = id, type = typeof(T).ToString() };
-					string qMsgJson = JsonConvert.SerializeObject(qMsg);
-
-					CloudQueue queueWriter = await queueFaultBinder.BindAsync<CloudQueue>(new QueueAttribute("transmission-faults"));
-					await queueWriter.AddMessageAsync(new CloudQueueMessage(qMsgJson));
-				}
-				catch (Exception exFaultQueue)
-				{
-					log.Error($"Failed to write the fault queue: {id}. {exFaultQueue}");
-				}
+				await reportFailuresDelegate(blobFaultBinder, queueFaultBinder, log, parsedMessages, exEmit);
 			}
 
-			log.Info($"C# Event Hub trigger function processed a batch of messages: {messages.Length}");
+			log.LogInformation($"C# Event Hub trigger function processed a batch of messages: {messages.Length}");
+		}
+
+		private static async Task LogFailuresToAzureStuff<T>(IBinder blobFaultBinder, Binder queueFaultBinder, ILogger log, List<string> parsedMessages, Exception exEmit)
+		{
+			string id = Guid.NewGuid().ToString();
+			log.LogError($"Failed to write the fault queue: {id}. {exEmit}");
+
+			try
+			{
+				CloudBlockBlob blobWriter = await blobFaultBinder.BindAsync<CloudBlockBlob>(new BlobAttribute($"transmission-faults/{id}", FileAccess.ReadWrite));
+
+				string json = await Task<string>.Factory.StartNew(() => JsonConvert.SerializeObject(parsedMessages));
+				await blobWriter.UploadTextAsync(json);
+			}
+			catch (Exception exFaultBlob)
+			{
+				log.LogError($"Failed to write the fault blob: {id}. {exFaultBlob}");
+			}
+
+			try
+			{
+				TransmissionFaultMessage qMsg = new TransmissionFaultMessage { id = id, type = typeof(T).ToString() };
+				string qMsgJson = JsonConvert.SerializeObject(qMsg);
+
+				CloudQueue queueWriter = await queueFaultBinder.BindAsync<CloudQueue>(new QueueAttribute("transmission-faults"));
+				await queueWriter.AddMessageAsync(new CloudQueueMessage(qMsgJson));
+			}
+			catch (Exception exFaultQueue)
+			{
+				log.LogError($"Failed to write the fault queue: {id}. {exFaultQueue}");
+			}
 		}
 	}
 }

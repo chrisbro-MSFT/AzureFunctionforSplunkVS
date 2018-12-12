@@ -5,6 +5,8 @@ VisualStudioVersion = 15.0.27004.2002
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AzureLogExporter", "AzureLogExporter\AzureLogExporter.csproj", "{02145275-B0F3-483B-9449-13C0786DF4E6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AzureLogExplorerTests", "AzureLogExplorerTests\AzureLogExplorerTests.csproj", "{A6466DF4-F2FB-4553-B59A-996E8604C6DD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{02145275-B0F3-483B-9449-13C0786DF4E6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{02145275-B0F3-483B-9449-13C0786DF4E6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{02145275-B0F3-483B-9449-13C0786DF4E6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A6466DF4-F2FB-4553-B59A-996E8604C6DD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A6466DF4-F2FB-4553-B59A-996E8604C6DD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A6466DF4-F2FB-4553-B59A-996E8604C6DD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A6466DF4-F2FB-4553-B59A-996E8604C6DD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

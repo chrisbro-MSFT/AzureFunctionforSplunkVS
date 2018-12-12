@@ -25,6 +25,7 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 using Microsoft.Azure.WebJobs.Host;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -45,22 +46,14 @@ namespace AzureLogExporter
 		public string type { get; set; }
 	}
 
+
 	public class Utils
 	{
 		static string ExpectedRemoteCertThumbprint { get; set; }
 
 		public Utils()
 		{
-			ExpectedRemoteCertThumbprint = GetEnvironmentVariable("destinationCertThumbprint");
-		}
-
-		public static string GetEnvironmentVariable(string name)
-		{
-			string result = System.Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.Process);
-			if (result == null)
-				return "";
-
-			return result;
+			ExpectedRemoteCertThumbprint = Config.GetValue("destinationCertThumbprint");
 		}
 
 		public class SingleHttpClientInstance
@@ -82,7 +75,7 @@ namespace AzureLogExporter
 		private static bool ValidateMyCert(object sender, X509Certificate cert, X509Chain chain, SslPolicyErrors sslErr)
 		{
 			// if user has not configured a cert, anything goes
-			if (string.IsNullOrWhiteSpace(ExpectedRemoteCertThumbprint))
+			if (String.IsNullOrWhiteSpace(ExpectedRemoteCertThumbprint))
 				return true;
 
 			// if user has configured a cert, must match
@@ -93,13 +86,13 @@ namespace AzureLogExporter
 			return false;
 		}
 
-		public static async Task SendEvents(List<string> standardizedEvents, TraceWriter log)
+		public static async Task SendEvents(List<string> standardizedEvents, ILogger log)
 		{
-			string destinationAddress = Utils.GetEnvironmentVariable("destinationAddress");
-			string destinationToken = Utils.GetEnvironmentVariable("destinationToken");
+			string destinationAddress = Config.GetValue("destinationAddress");
+			string destinationToken = Config.GetValue("destinationToken");
 			if (destinationAddress.Length == 0 || destinationToken.Length == 0)
 			{
-				log.Error("Values for destinationAddress and destinationToken are required.");
+				log.LogError("Values for destinationAddress and destinationToken are required.");
 				return;
 			}
 
@@ -129,12 +122,12 @@ namespace AzureLogExporter
 			}
 			catch (System.Net.Http.HttpRequestException hrex)
 			{
-				log.Error($"Http error while sending: {hrex}");
+				log.LogError($"Http error while sending: {hrex}");
 				throw;
 			}
 			catch (Exception ex)
 			{
-				log.Error($"Unexpected error while sending: {ex}");
+				log.LogError($"Unexpected error while sending: {ex}");
 				throw;
 			}
 		}

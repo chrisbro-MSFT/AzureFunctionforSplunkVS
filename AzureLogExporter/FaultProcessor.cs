@@ -5,6 +5,7 @@ using Microsoft.WindowsAzure.Storage.Blob;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 namespace AzureLogExporter
 {
@@ -14,7 +15,7 @@ namespace AzureLogExporter
 		public static async Task Run(
 			[QueueTrigger("transmission-faults", Connection = "AzureWebJobsStorage")]string fault,
 			IBinder blobFaultBinder,
-			TraceWriter log)
+			ILogger log)
 		{
 			TransmissionFaultMessage faultData = JsonConvert.DeserializeObject<TransmissionFaultMessage>(fault);
 
@@ -30,13 +31,13 @@ namespace AzureLogExporter
 			}
 			catch
 			{
-				log.Error($"FaultProcessor failed to send: {faultData.id}");
+				log.LogError($"FaultProcessor failed to send: {faultData.id}");
 				return;
 			}
 
 			await blobReader.DeleteAsync();
 
-			log.Info($"C# Queue trigger function processed: {faultData.id}");
+			log.LogInformation($"C# Queue trigger function processed: {faultData.id}");
 		}
 	}
 }
