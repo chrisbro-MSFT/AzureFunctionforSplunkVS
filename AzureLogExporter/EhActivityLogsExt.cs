@@ -40,7 +40,10 @@ namespace AzureLogExporter
 			Binder queueFaultBinder,
 			Microsoft.Extensions.Logging.ILogger log)
 		{
-			await Runner.Run<ActivityLogMessages>(messages, blobFaultBinder, queueFaultBinder, log);
+			await Runner.Run<ActivityLogMessages>(
+				messages,
+				log,
+				Runner.ReportFailuresToAzure<ActivityLogMessages>(blobFaultBinder, queueFaultBinder));
 		}
 	}
 }

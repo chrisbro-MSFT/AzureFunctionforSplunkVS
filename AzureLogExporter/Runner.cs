@@ -37,20 +37,20 @@ using Newtonsoft.Json;
 
 namespace AzureLogExporter
 {
-	public delegate Task ReportFailuresDelegate<T>(IBinder blobFaultBinder, Binder queueFaultBinder, ILogger log, List<string> parsedMessages, Exception exEmit);
+	public delegate Task ReportFailuresDelegate<T>(ILogger log, List<string> parsedMessages, Exception exEmit);
 
 	public static class Runner
 	{
+		internal static ReportFailuresDelegate<T> ReportFailuresToAzure<T>(IBinder blobFaultBinder, Binder queueFaultBinder)
+		{
+			return (log, parsedMessage,exEmit) => LogFailuresToAzureStuff<T>(blobFaultBinder, queueFaultBinder, log, parsedMessage, exEmit);
+		}
+
 		public static async Task Run<T>(
 			string[] messages,
-			IBinder blobFaultBinder,
-			Binder queueFaultBinder,
 			ILogger log,
 			ReportFailuresDelegate<T> reportFailuresDelegate = null)
 		{
-			if (reportFailuresDelegate == null)
-				reportFailuresDelegate = LogFailuresToAzureStuff<T>;
-
 			AzMonMessages azMonMsgs = (AzMonMessages)Activator.CreateInstance(typeof(T), log);
 			List<string> parsedMessages = null;
 			try
@@ -81,7 +81,14 @@ namespace AzureLogExporter
 			}
 			catch (Exception exEmit)
 			{
-				await reportFailuresDelegate(blobFaultBinder, queueFaultBinder, log, parsedMessages, exEmit);
+				if (reportFailuresDelegate != null)
+				{
+					await reportFailuresDelegate(log, parsedMessages, exEmit);
+				}
+				else
+				{
+					log.LogError($"Failed to send events.  No fancy logger configured.  Enjoy this exception: {exEmit}");
+				}
 			}
 
 			log.LogInformation($"C# Event Hub trigger function processed a batch of messages: {messages.Length}");
