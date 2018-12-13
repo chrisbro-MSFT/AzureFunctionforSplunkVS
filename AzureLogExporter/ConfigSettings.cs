@@ -20,6 +20,14 @@ namespace AzureLogExporter
 
 	}
 
+	/// <summary> The names of each config setting. </summary>
+	public static class ConfigSettings
+	{
+		public static readonly string DestinationCertThumbprint = "destinationCertThumbprint";
+		public static readonly string DestinationAddress = "destinationAddress";
+		public static readonly string DestinationToken = "destinationToken";
+	}
+
 	public class ConfigFromEnvironmentVariables : IConfigThingy
 	{
 		public string GetValue(string name)

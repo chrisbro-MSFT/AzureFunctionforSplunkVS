@@ -53,7 +53,7 @@ namespace AzureLogExporter
 
 		public Utils()
 		{
-			ExpectedRemoteCertThumbprint = Config.GetValue("destinationCertThumbprint");
+			ExpectedRemoteCertThumbprint = Config.GetValue(ConfigSettings.DestinationCertThumbprint);
 		}
 
 		public class SingleHttpClientInstance
@@ -88,12 +88,17 @@ namespace AzureLogExporter
 
 		public static async Task SendEvents(List<string> standardizedEvents, ILogger log)
 		{
-			string destinationAddress = Config.GetValue("destinationAddress");
-			string destinationToken = Config.GetValue("destinationToken");
-			if (destinationAddress.Length == 0 || destinationToken.Length == 0)
+			string destinationAddress = Config.GetValue(ConfigSettings.DestinationAddress);
+			if (String.IsNullOrWhiteSpace(destinationAddress))
 			{
-				log.LogError("Values for destinationAddress and destinationToken are required.");
+				log.LogError("destinationAddress config setting is required and not set.");
 				return;
+			}
+
+			string destinationToken = Config.GetValue(ConfigSettings.DestinationToken);
+			if (String.IsNullOrWhiteSpace(destinationToken))
+			{
+				log.LogInformation("destinationToken config setting is not set; proceeding with anonymous call.");
 			}
 
 			ServicePointManager.Expect100Continue = true;
@@ -112,10 +117,19 @@ namespace AzureLogExporter
 				HttpRequestMessage req = new HttpRequestMessage(HttpMethod.Post, destinationAddress);
 				req.Headers.Accept.Clear();
 				req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-				req.Headers.Add("Authorization", "Bearer " + destinationToken);
+
+				if (!String.IsNullOrWhiteSpace(destinationToken))
+				{
+					req.Headers.Add("Authorization", "Bearer " + destinationToken);
+				}
+
 				req.Content = new StringContent(newClientContent.ToString(), Encoding.UTF8, "application/json");
 				HttpResponseMessage response = await SingleHttpClientInstance.SendRequest(req);
-				if (response.StatusCode != HttpStatusCode.OK)
+				if (response.StatusCode == HttpStatusCode.OK)
+				{
+					log.LogInformation("Send successful");
+				}
+				else
 				{
 					throw new System.Net.Http.HttpRequestException($"Request failed.  StatusCode: {response.StatusCode}, and reason: {response.ReasonPhrase}");
 				}

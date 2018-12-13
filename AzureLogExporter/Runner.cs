@@ -68,10 +68,7 @@ namespace AzureLogExporter
 				return;
 			}
 
-			if (parsedMessages.Count != messages.Length)
-			{
-				log.LogWarning($"Trigger function processed a batch of {messages.Length} messages but only successfully parsed {parsedMessages.Count}");
-			}
+			log.LogInformation($"Trigger function processed a batch of {messages.Length} messages into {parsedMessages.Count} events");
 
 			// TODO: Augment the messages with workload-specific data
 
@@ -91,7 +88,7 @@ namespace AzureLogExporter
 				}
 			}
 
-			log.LogInformation($"C# Event Hub trigger function processed a batch of messages: {messages.Length}");
+			log.LogInformation($"Finished processing.");
 		}
 
 		private static async Task LogFailuresToAzureStuff<T>(IBinder blobFaultBinder, Binder queueFaultBinder, ILogger log, List<string> parsedMessages, Exception exEmit)

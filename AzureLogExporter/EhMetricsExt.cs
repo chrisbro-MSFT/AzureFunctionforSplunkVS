@@ -31,6 +31,7 @@ using System.Threading.Tasks;
 
 namespace AzureLogExporter
 {
+	/*
 	public static class EhMetricsExt
 	{
 		[FunctionName("EhMetricsExt")]
@@ -46,4 +47,5 @@ namespace AzureLogExporter
 				Runner.ReportFailuresToAzure<ActivityLogMessages>(blobFaultBinder, queueFaultBinder));
 		}
 	}
+	*/
 }

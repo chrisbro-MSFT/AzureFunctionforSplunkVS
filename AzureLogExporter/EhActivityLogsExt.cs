@@ -35,7 +35,7 @@ namespace AzureLogExporter
 	{
 		[FunctionName("EhActivityLogsExt")]
 		public static async Task Run(
-			[EventHubTrigger("%input-hub-name-activity-logs%", Connection = "hubConnection")]string[] messages,
+			[EventHubTrigger("insights-operational-logs", Connection = "ActivityLogEventHubConnection")]string[] messages,
 			IBinder blobFaultBinder,
 			Binder queueFaultBinder,
 			Microsoft.Extensions.Logging.ILogger log)
