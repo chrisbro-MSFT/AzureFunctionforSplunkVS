@@ -18,6 +18,17 @@ namespace AzureLogExporter
 			return s_settingsInstance.Value.GetValue(name);
 		}
 
+		public static bool GetBool(string name)
+		{
+			string rawValue = s_settingsInstance.Value.GetValue(name);
+			if (String.IsNullOrWhiteSpace(rawValue))
+				return false;
+
+			bool parsedValue;
+			if (!Boolean.TryParse(rawValue, out parsedValue))
+				return false;
+			return parsedValue;
+		}
 	}
 
 	/// <summary> The names of each config setting. </summary>
@@ -26,6 +37,7 @@ namespace AzureLogExporter
 		public static readonly string DestinationCertThumbprint = "destinationCertThumbprint";
 		public static readonly string DestinationAddress = "destinationAddress";
 		public static readonly string DestinationToken = "destinationToken";
+		public static readonly string LogRawData = "logRawData";
 	}
 
 	public class ConfigFromEnvironmentVariables : IConfigThingy

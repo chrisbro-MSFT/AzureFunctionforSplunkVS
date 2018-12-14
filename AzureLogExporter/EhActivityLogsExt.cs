@@ -27,6 +27,7 @@
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Host;
 using Microsoft.Azure.WebJobs.ServiceBus;
+using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
 
 namespace AzureLogExporter
@@ -40,6 +41,12 @@ namespace AzureLogExporter
 			Binder queueFaultBinder,
 			Microsoft.Extensions.Logging.ILogger log)
 		{
+			if (Config.GetBool(ConfigSettings.LogRawData))
+			{
+				string logMessages = string.Join("\r\n", messages);
+				log.LogInformation($"Got:\r\n{logMessages}");
+			}
+
 			await Runner.Run<ActivityLogMessages>(
 				messages,
 				log,

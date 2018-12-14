@@ -105,10 +105,23 @@ namespace AzureLogExporter
 			ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
 			ServicePointManager.ServerCertificateValidationCallback += new RemoteCertificateValidationCallback(ValidateMyCert);
 
+			// HACK: Build the list of events into a JSON array because that is the format the Azure Event Grid Viewer expects
 			StringBuilder newClientContent = new StringBuilder();
-			foreach (string item in standardizedEvents)
+			newClientContent.Append("[");
+			for (int iEvent = 0; iEvent < standardizedEvents.Count; iEvent++)
 			{
-				newClientContent.Append(item);
+				newClientContent.Append(standardizedEvents[iEvent]);
+
+				if (iEvent != standardizedEvents.Count - 1)
+				{
+					newClientContent.Append(",");
+				}
+			}
+			newClientContent.Append("]");
+
+			if (Config.GetBool(ConfigSettings.LogRawData))
+			{
+				log.LogInformation($"Sending:\r\n{newClientContent.ToString()}");
 			}
 
 			SingleHttpClientInstance client = new SingleHttpClientInstance();
@@ -122,6 +135,9 @@ namespace AzureLogExporter
 				{
 					req.Headers.Add("Authorization", "Bearer " + destinationToken);
 				}
+
+				// WebHook stuff
+				req.Headers.Add("aeg-event-type", "Notification");
 
 				req.Content = new StringContent(newClientContent.ToString(), Encoding.UTF8, "application/json");
 				HttpResponseMessage response = await SingleHttpClientInstance.SendRequest(req);

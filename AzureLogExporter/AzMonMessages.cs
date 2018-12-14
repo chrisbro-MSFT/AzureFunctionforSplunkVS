@@ -47,8 +47,16 @@ namespace AzureLogExporter
 				{
 					dynamic records = obj["records"];
 
+					int id = 0;
 					foreach (dynamic record in records)
 					{
+						// HACK: add webhook-specific fields so that the Azure Event Grid Viewer sample has better UI
+						record["Id"] = record["correlationId"]?.ToString()?.ToLowerInvariant() + "-" + (++id).ToString(System.Globalization.CultureInfo.InvariantCulture);
+						record["EventType"] = record["operationName"]?.ToString()?.ToLowerInvariant();
+						record["Subject"] = record["resourceId"]?.ToString()?.ToLowerInvariant();
+						record["EventTime"] = record["time"];
+						//record["Topic"] = record[""];
+
 						string stringRecord = record.ToString();
 
 						decomposed.Add(stringRecord);
